@@ -69,6 +69,7 @@ struct osc_int32 {
 struct osc_timetag {
 	OSC_ELEMENT_COMMON
 
+	bool immediately;
 	struct timespec value;
 };
 
@@ -103,5 +104,6 @@ union osc_element_ptr {
 } __attribute__((__transparent_union__));
 
 void osc_free(union osc_element_ptr ptr);
+struct osc_element *osc_parse_packet(const void *data, size_t len);
 
 #endif

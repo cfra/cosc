@@ -104,10 +104,12 @@ static struct osc_int32 *osc_parse_int32(struct osc_parser_state *s)
 		return NULL;
 
 	memcpy(&tmp, s->ptr, 4);
+	s->ptr += 4;
+	s->len -= 4;
 
 	rv = calloc(sizeof(*rv), 1);
 	rv->type = OSC_INT32;
-	rv->value = htonl(tmp);
+	rv->value = ntohl(tmp);
 	return rv;
 }
 
@@ -210,6 +212,85 @@ out:
 	return NULL;
 }
 
+static struct osc_timetag *osc_parse_timetag(struct osc_parser_state *s)
+{
+	struct osc_timetag *rv = NULL;
+	uint64_t seconds, fraction;
+	uint32_t tmp;
+
+	if (s->len < 8)
+		return NULL;
+
+	rv = calloc(sizeof(*rv), 1);
+	rv->type = OSC_TIMETAG;
+
+	memcpy(&tmp, s->ptr, 4);
+	seconds = ntohl(tmp);
+	s->ptr += 4;
+	memcpy(&tmp, s->ptr, 4);
+	fraction = ntohl(tmp);
+	s->ptr += 4;
+	s->len -= 8;
+
+	tmp = be64toh(tmp);
+
+	if (seconds == 0 && fraction == 1) {
+		rv->immediately = true;
+	} else {
+		rv->immediately = false;
+		seconds -= 2208988800ULL;
+		fraction *= 1000000000ULL;
+		fraction >>= 32;
+
+		rv->value.tv_sec = seconds;
+		rv->value.tv_nsec = fraction;
+	}
+
+	return rv;
+}
+
+static struct osc_bundle *osc_parse_bundle(struct osc_parser_state *s)
+{
+	struct osc_timetag *tag = osc_parse_timetag(s);
+	if (!tag)
+		return NULL;
+
+	struct osc_bundle *rv = calloc(sizeof(*rv), 1);
+	rv->type = OSC_BUNDLE;
+	rv->timetag = tag;
+
+	struct osc_element **atnext = &rv->elements;
+
+	while (s->len) {
+		struct osc_int32 *i = osc_parse_int32(s);
+		if (!i)
+			goto out;
+
+		if ((size_t)i->value > s->len) {
+			osc_free(i);
+			goto out;
+		}
+
+		*atnext = osc_parse_packet(s->ptr, i->value);
+		s->ptr += i->value;
+		s->len -= i->value;
+
+		if (!*atnext)
+			goto out;
+		atnext = &(*atnext)->next;
+		osc_free(i);
+	}
+
+	return rv;
+out:
+	if (rv)
+		osc_free(rv);
+	else
+		osc_free(tag);
+
+	return NULL;
+}
+
 struct osc_element *osc_parse_packet(const void *data, size_t len)
 {
 	struct osc_parser_state s = {
@@ -223,8 +304,10 @@ struct osc_element *osc_parse_packet(const void *data, size_t len)
 	if (!head)
 		return NULL;
 
-	if (strcmp(head->value, "#bundle"))
+	if (strcmp(head->value, "#bundle")) {
+		osc_free(head);
 		return (struct osc_element*)osc_parse_bundle(&s);
+	}
 
 	return (struct osc_element*)osc_parse_message(&s, head);
 }
