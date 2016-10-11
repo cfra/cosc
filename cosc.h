@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #define _GNU_SOURCE 1
+#include <assert.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>

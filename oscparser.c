@@ -27,6 +27,74 @@ struct osc_parser_state {
 	size_t len;
 };
 
+static void osc_free_simple(struct osc_element *e)
+{
+	osc_free(e->next);
+	free(e);
+}
+
+static void osc_free_message(struct osc_message *m)
+{
+	osc_free(m->address);
+	osc_free(m->arguments);
+	m->type = OSC_ELEMENT;
+	osc_free(m);
+}
+
+static void osc_free_bundle(struct osc_bundle *b)
+{
+	osc_free(b->timetag);
+	osc_free(b->elements);
+	b->type = OSC_ELEMENT;
+	osc_free(b);
+}
+
+static void osc_free_string(struct osc_string *s)
+{
+	free(s->value);
+	s->type = OSC_ELEMENT;
+	osc_free(s);
+}
+
+static void osc_free_blob(struct osc_blob *b)
+{
+	free(b->value);
+	b->type = OSC_ELEMENT;
+	osc_free(b);
+}
+
+void osc_free(union osc_element_ptr ptr)
+{
+	struct osc_element *e = ptr.element;
+
+	if (!e)
+		return;
+
+	switch (e->type) {
+	case OSC_UNDEFINED:
+		assert(0);
+		break;
+	case OSC_MESSAGE:
+		osc_free_message(ptr.message);
+		break;
+	case OSC_BUNDLE:
+		osc_free_bundle(ptr.bundle);
+		break;
+	case OSC_ELEMENT:
+	case OSC_INT32:
+	case OSC_TIMETAG:
+	case OSC_FLOAT32:
+		osc_free_simple(e);
+		break;
+	case OSC_STRING:
+		osc_free_string(ptr.string);
+		break;
+	case OSC_BLOB:
+		osc_free_blob(ptr.blob);
+		break;
+	}
+}
+
 static struct osc_int32 *osc_parse_int32(struct osc_parser_state *s)
 {
 	struct osc_int32 *rv = NULL;
@@ -79,7 +147,7 @@ static struct osc_string *osc_parse_string(struct osc_parser_state *s)
 
 static struct osc_blob *osc_parse_blob(struct osc_parser_state *s)
 {
-	return NULL;
+	return NULL; /* TODO */
 }
 
 static struct osc_element *osc_parse_element(struct osc_parser_state *s, char type)

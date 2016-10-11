@@ -24,6 +24,7 @@
 
 enum osc_type {
 	OSC_UNDEFINED = 0,
+	OSC_ELEMENT,
 
 	OSC_MESSAGE,
 	OSC_BUNDLE,
@@ -89,5 +90,18 @@ struct osc_blob {
 	unsigned char *value;
 	size_t size;
 };
+
+union osc_element_ptr {
+	struct osc_element* element;
+	struct osc_message* message;
+	struct osc_bundle* bundle;
+	struct osc_int32* int32;
+	struct osc_timetag* timetag;
+	struct osc_float32* float32;
+	struct osc_string* string;
+	struct osc_blob* blob;
+} __attribute__((__transparent_union__));
+
+void osc_free(union osc_element_ptr ptr);
 
 #endif
