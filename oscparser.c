@@ -21,6 +21,7 @@
  */
 #include "cosc.h"
 #include "oscparser.h"
+#include "oscfloat.h"
 
 struct osc_formatter_state {
 	char *pos;
@@ -141,8 +142,21 @@ static struct osc_int32 *osc_parse_int32(struct osc_parser_state *s)
 
 static struct osc_float32 *osc_parse_float32(struct osc_parser_state *s)
 {
-	osc_format_print(&s->f, 0, "Parsing float32 not implemented.\n");
-	return NULL; /* TODO */
+	struct osc_float32 *rv = NULL;
+
+	osc_format_print(&s->f, 0, "Parsing float32...\n");
+	if (s->len < 4) {
+		osc_format_print(&s->f, 0, "Not enough data available.\n");
+		return NULL;
+	}
+
+	rv = calloc(sizeof(*rv), 1);
+	rv->type = OSC_FLOAT32;
+	rv->value = osc_unpack_float((unsigned char*)s->ptr);
+	s->ptr += 4;
+	s->len -= 4;
+
+	return rv;
 }
 
 static struct osc_string *osc_parse_string(struct osc_parser_state *s)
