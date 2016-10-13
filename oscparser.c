@@ -401,8 +401,7 @@ static void osc_format_message(struct osc_formatter_state *s, unsigned indent,
 	osc_format_print(s, indent, "  Address: \"%s\"\n", msg->address->value);
 	osc_format_print(s, indent, "  Arguments:\n");
 
-	for (struct osc_element *e = msg->arguments; e; e = e->next)
-		_osc_format(s, indent + 4, e);
+	_osc_format(s, indent + 4, msg->arguments);
 }
 
 static void osc_format_bundle(struct osc_formatter_state *s, unsigned indent,
@@ -412,46 +411,44 @@ static void osc_format_bundle(struct osc_formatter_state *s, unsigned indent,
 	osc_format_timetag(s, indent + 2, b->timetag);
 	osc_format_print(s, indent, "  Elements:\n");
 
-	for (struct osc_element *e = b->elements; e; e = e->next)
-		_osc_format(s, indent + 4, e);
+	_osc_format(s, indent + 4, b->elements);
 }
 
 static void _osc_format(struct osc_formatter_state *s, unsigned indent,
                         union osc_element_ptr ptr)
 {
-	struct osc_element *e = ptr.element;
 
-	if (!e)
-		return;
-
-	switch (e->type) {
-	case OSC_UNDEFINED:
-		osc_format_print(s, indent, "OSC_UNDEFINED\n");
-		break;
-	case OSC_MESSAGE:
-		osc_format_message(s, indent, ptr.message);
-		break;
-	case OSC_BUNDLE:
-		osc_format_bundle(s, indent, ptr.bundle);
-		break;
-	case OSC_ELEMENT:
-		osc_format_print(s, indent, "OSC_ELEMENT\n");
-		break;
-	case OSC_INT32:
-		osc_format_print(s, indent, "OSC_INT32: %d\n", ptr.int32->value);
-		break;
-	case OSC_TIMETAG:
-		osc_format_timetag(s, indent, ptr.timetag);
-		break;
-	case OSC_FLOAT32:
-		osc_format_print(s, indent, "OSC_FLOAT32: %f\n", ptr.float32->value);
-		break;
-	case OSC_STRING:
-		osc_format_print(s, indent, "OSC_STRING: \"%s\"\n", ptr.string->value);
-		break;
-	case OSC_BLOB:
-		osc_format_blob(s, indent, ptr.blob);
-		break;
+	for (struct osc_element *e = ptr.element; e; e = e->next) {
+		ptr.element = e;
+		switch (e->type) {
+		case OSC_UNDEFINED:
+			osc_format_print(s, indent, "OSC_UNDEFINED\n");
+			break;
+		case OSC_MESSAGE:
+			osc_format_message(s, indent, ptr.message);
+			break;
+		case OSC_BUNDLE:
+			osc_format_bundle(s, indent, ptr.bundle);
+			break;
+		case OSC_ELEMENT:
+			osc_format_print(s, indent, "OSC_ELEMENT\n");
+			break;
+		case OSC_INT32:
+			osc_format_print(s, indent, "OSC_INT32: %d\n", ptr.int32->value);
+			break;
+		case OSC_TIMETAG:
+			osc_format_timetag(s, indent, ptr.timetag);
+			break;
+		case OSC_FLOAT32:
+			osc_format_print(s, indent, "OSC_FLOAT32: %f\n", ptr.float32->value);
+			break;
+		case OSC_STRING:
+			osc_format_print(s, indent, "OSC_STRING: \"%s\"\n", ptr.string->value);
+			break;
+		case OSC_BLOB:
+			osc_format_blob(s, indent, ptr.blob);
+			break;
+		}
 	}
 }
 
