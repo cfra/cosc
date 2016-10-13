@@ -22,10 +22,33 @@
 #include "cosc.h"
 #include "oscparser.h"
 
+struct osc_formatter_state {
+	char *pos;
+	char *end;
+};
+
 struct osc_parser_state {
 	const unsigned char *ptr;
 	size_t len;
+	struct osc_formatter_state f;
 };
+
+static void osc_format_print(struct osc_formatter_state *s, unsigned indent, const char *fmt, ...)
+{
+	va_list ap;
+	char buf[4096];
+
+	if (!s->pos)
+		return;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	snprintf(s->pos, s->end - s->pos, "%*s%s", indent, "", buf);
+	s->pos += strlen(s->pos);
+}
+
 
 static void osc_free_simple(struct osc_element *e)
 {
@@ -100,8 +123,11 @@ static struct osc_int32 *osc_parse_int32(struct osc_parser_state *s)
 	struct osc_int32 *rv = NULL;
 	int32_t tmp;
 
-	if (s->len < 4)
+	osc_format_print(&s->f, 0, "Parsing int32...\n");
+	if (s->len < 4) {
+		osc_format_print(&s->f, 0, "Not enough data available.\n");
 		return NULL;
+	}
 
 	memcpy(&tmp, s->ptr, 4);
 	s->ptr += 4;
@@ -115,6 +141,7 @@ static struct osc_int32 *osc_parse_int32(struct osc_parser_state *s)
 
 static struct osc_float32 *osc_parse_float32(struct osc_parser_state *s)
 {
+	osc_format_print(&s->f, 0, "Parsing float32 not implemented.\n");
 	return NULL; /* TODO */
 }
 
@@ -122,6 +149,8 @@ static struct osc_string *osc_parse_string(struct osc_parser_state *s)
 {
 	size_t len = 0;
 	struct osc_string *rv = NULL;
+
+	osc_format_print(&s->f, 0, "Parsing string...\n");
 
 	while (len < s->len) {
 		if (*(s->ptr + len) == '\0') {
@@ -132,11 +161,14 @@ static struct osc_string *osc_parse_string(struct osc_parser_state *s)
 		len++;
 	}
 
-	if (!rv) /* No termination found */
+	if (!rv) { /* No termination found */
+		osc_format_print(&s->f, 0, "Could not find string terminator.\n");
 		return NULL;
+	}
 
 	rv->value = strdup((char*)s->ptr);
 
+	len += 1; /* Account for terminator byte. */
 	size_t padded = len + ((4 - (len % 4)) % 4);
 	if (padded > s->len)
 		padded = s->len; /* Ignore missing padding at end of packet */
@@ -149,6 +181,7 @@ static struct osc_string *osc_parse_string(struct osc_parser_state *s)
 
 static struct osc_blob *osc_parse_blob(struct osc_parser_state *s)
 {
+	osc_format_print(&s->f, 0, "Parsing blob not implemented.\n");
 	return NULL; /* TODO */
 }
 
@@ -164,34 +197,47 @@ static struct osc_element *osc_parse_element(struct osc_parser_state *s, char ty
 	case 'b':
 		return (struct osc_element*)osc_parse_blob(s);
 	default:
+		osc_format_print(&s->f, 0, "Don't know about type '%c'\n", type);
 		return NULL;
 	}
 }
 
 static struct osc_message *osc_parse_message(struct osc_parser_state *s, struct osc_string *addr)
 {
+	struct osc_string *types = NULL;
+	struct osc_message *rv = NULL;
+
 	if (!addr) {
+		osc_format_print(&s->f, 0, "Parsing address...!\n");
 		addr = osc_parse_string(s);
 		if (!addr)
 			return NULL;
 	}
 
-	if (addr->value[0] != '/')
+	if (addr->value[0] != '/') {
+		osc_format_print(&s->f, 0, "Message does not start with valid address!\n");
 		goto out;
+	}
 
-	struct osc_message *rv = calloc(sizeof(*rv), 1);
+	rv = calloc(sizeof(*rv), 1);
 	rv->type = OSC_MESSAGE;
 	rv->address = addr;
 
 	if (!s->len) /* Empty Tag string -> no arguments */
 		return rv;
 
-	struct osc_string *types = osc_parse_string(s);
-	if (!types || types->value[0] != ',')
+	types = osc_parse_string(s);
+	if (!types || types->value[0] != ',') {
+		osc_format_print(&s->f, 0, "Message does not contain correct type tag string!\n");
+		if (types)
+			osc_format_print(&s->f, 2, "Tag types string: \"%s\"\n", types->value);
+		else
+			osc_format_print(&s->f, 2, "Tag types string could not be parsed.\n");
+
 		goto out;
+	}
 
 	struct osc_element **atnext = &rv->arguments;
-
 	for (char *type = &types->value[1]; *type; type++) {
 		*atnext = osc_parse_element(s, *type);
 		if (!*atnext)
@@ -218,8 +264,12 @@ static struct osc_timetag *osc_parse_timetag(struct osc_parser_state *s)
 	uint64_t seconds, fraction;
 	uint32_t tmp;
 
-	if (s->len < 8)
+	osc_format_print(&s->f, 0, "Parsing timetag...\n");
+
+	if (s->len < 8) {
+		osc_format_print(&s->f, 0, "Not enough data available.\n");
 		return NULL;
+	}
 
 	rv = calloc(sizeof(*rv), 1);
 	rv->type = OSC_TIMETAG;
@@ -262,18 +312,24 @@ static struct osc_bundle *osc_parse_bundle(struct osc_parser_state *s)
 	struct osc_element **atnext = &rv->elements;
 
 	while (s->len) {
+		osc_format_print(&s->f, 0, "Parsing bundle element...\n");
 		struct osc_int32 *i = osc_parse_int32(s);
 		if (!i)
 			goto out;
 
 		if ((size_t)i->value > s->len) {
+			osc_format_print(&s->f, 0, "Bundle element size too large.\n");
 			osc_free(i);
 			goto out;
 		}
 
-		*atnext = osc_parse_packet(s->ptr, i->value);
+		char *log;
+		*atnext = osc_parse_packet(s->ptr, i->value, &log);
 		s->ptr += i->value;
 		s->len -= i->value;
+
+		osc_format_print(&s->f, 0, "<subparser>\n%s</subparser>\n", log);
+		free(log);
 
 		if (!*atnext)
 			goto out;
@@ -291,23 +347,131 @@ out:
 	return NULL;
 }
 
-struct osc_element *osc_parse_packet(const void *data, size_t len)
+struct osc_element *osc_parse_packet(const void *data, size_t len, char **log)
 {
+	char *logbuf;
 	struct osc_parser_state s = {
 		.ptr = data,
-		.len = len
+		.len = len,
 	};
+
+	if (log) {
+		logbuf = malloc(8192);
+		logbuf[0] = '\0';
+		*log = logbuf;
+		s.f.pos = logbuf;
+		s.f.end = logbuf + 8192;
+	}
 
 	/* Packet is either a bundle or a message, both start with a string */
 	struct osc_string *head = osc_parse_string(&s);
 
-	if (!head)
+	if (!head) {
+		osc_format_print(&s.f, 0, "Could not find start string of message or bundle.\n");
 		return NULL;
+	}
 
-	if (strcmp(head->value, "#bundle")) {
+	if (!strcmp(head->value, "#bundle")) {
 		osc_free(head);
+		osc_format_print(&s.f, 0, "Found bundle, parsing...\n");
 		return (struct osc_element*)osc_parse_bundle(&s);
 	}
 
+	osc_format_print(&s.f, 0, "Found messsage, parsing...\n");
 	return (struct osc_element*)osc_parse_message(&s, head);
+}
+
+static void _osc_format(struct osc_formatter_state *s, unsigned indent,
+                        union osc_element_ptr ptr);
+
+static void osc_format_blob(struct osc_formatter_state *s, unsigned indent,
+                            struct osc_blob *b)
+{
+	osc_format_print(s, indent, "OSC_BLOB: ...\n"); /* TODO */
+}
+
+static void osc_format_timetag(struct osc_formatter_state *s, unsigned indent,
+                               struct osc_timetag *t)
+{
+	if (t->immediately) {
+		osc_format_print(s, indent, "OSC_TIMETAG: immediately\n");
+	} else {
+		osc_format_print(s, indent, "OSC_TIMETAG: %jd sec %jd nsec\n",
+		                 (intmax_t)t->value.tv_sec, (intmax_t)t->value.tv_nsec);
+	}
+}
+
+static void osc_format_message(struct osc_formatter_state *s, unsigned indent,
+                               struct osc_message *msg)
+{
+	osc_format_print(s, indent, "OSC_MESSAGE:\n");
+	osc_format_print(s, indent, "  Address: \"%s\"\n", msg->address->value);
+	osc_format_print(s, indent, "  Arguments:\n");
+
+	for (struct osc_element *e = msg->arguments; e; e = e->next)
+		_osc_format(s, indent + 4, e);
+}
+
+static void osc_format_bundle(struct osc_formatter_state *s, unsigned indent,
+                              struct osc_bundle *b)
+{
+	osc_format_print(s, indent, "OSC_BUNDLE:\n");
+	osc_format_timetag(s, indent + 2, b->timetag);
+	osc_format_print(s, indent, "  Elements:\n");
+
+	for (struct osc_element *e = b->elements; e; e = e->next)
+		_osc_format(s, indent + 4, e);
+}
+
+static void _osc_format(struct osc_formatter_state *s, unsigned indent,
+                        union osc_element_ptr ptr)
+{
+	struct osc_element *e = ptr.element;
+
+	if (!e)
+		return;
+
+	switch (e->type) {
+	case OSC_UNDEFINED:
+		osc_format_print(s, indent, "OSC_UNDEFINED\n");
+		break;
+	case OSC_MESSAGE:
+		osc_format_message(s, indent, ptr.message);
+		break;
+	case OSC_BUNDLE:
+		osc_format_bundle(s, indent, ptr.bundle);
+		break;
+	case OSC_ELEMENT:
+		osc_format_print(s, indent, "OSC_ELEMENT\n");
+		break;
+	case OSC_INT32:
+		osc_format_print(s, indent, "OSC_INT32: %d\n", ptr.int32->value);
+		break;
+	case OSC_TIMETAG:
+		osc_format_timetag(s, indent, ptr.timetag);
+		break;
+	case OSC_FLOAT32:
+		osc_format_print(s, indent, "OSC_FLOAT32: %f\n", ptr.float32->value);
+		break;
+	case OSC_STRING:
+		osc_format_print(s, indent, "OSC_STRING: \"%s\"\n", ptr.string->value);
+		break;
+	case OSC_BLOB:
+		osc_format_blob(s, indent, ptr.blob);
+		break;
+	}
+}
+
+const char *osc_format(union osc_element_ptr ptr)
+{
+	static char buf[8192];
+
+	struct osc_formatter_state s = {
+		.pos = buf,
+		.end = buf + sizeof(buf)
+	};
+	buf[0] = '\0';
+
+	_osc_format(&s, 0, ptr);
+	return buf;
 }

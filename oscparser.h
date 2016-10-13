@@ -104,6 +104,7 @@ union osc_element_ptr {
 } __attribute__((__transparent_union__));
 
 void osc_free(union osc_element_ptr ptr);
-struct osc_element *osc_parse_packet(const void *data, size_t len);
+struct osc_element *osc_parse_packet(const void *data, size_t len, char **log);
+const char *osc_format(union osc_element_ptr ptr);
 
 #endif

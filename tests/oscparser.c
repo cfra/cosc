@@ -19,15 +19,37 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#define _GNU_SOURCE 1
-#include <assert.h>
-#include <inttypes.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
+#include "../cosc.h"
+#include "../oscparser.h"
+
+#include "oscparser_tests.h"
+
+static int test(FILE *input, FILE *output)
+{
+	unsigned char buf[1024];
+	size_t pos = 0;
+	size_t bytes;
+
+	while (!feof(input)) {
+		bytes = fread(&buf[pos], 1, sizeof(buf) - pos, input);
+		if (!bytes)
+			break;
+		pos += bytes;
+		if (pos == sizeof(buf)) { /* Overflow */
+			fclose(input);
+			return 1;
+		}
+	}
+
+	fclose(input);
+
+	char *log;
+	struct osc_element *e = osc_parse_packet(buf, pos, &log);
+	const char *formatted = osc_format(e);
+	osc_free(e);
+
+	fprintf(output, "Parser log:\n%s", log);
+	fprintf(output, "Parser out:\n%s", formatted);
+
+	return 0;
+}

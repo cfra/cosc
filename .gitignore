@@ -1,1 +1,7 @@
 *.o
+*.expand
+*.gcda
+*.gcno
+/tests/oscparser
+/tests/oscparser_afl
+coverage.info
