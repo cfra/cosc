@@ -207,13 +207,6 @@ static struct osc_message *osc_parse_message(struct osc_parser_state *s, struct 
 	struct osc_string *types = NULL;
 	struct osc_message *rv = NULL;
 
-	if (!addr) {
-		osc_format_print(&s->f, 0, "Parsing address...!\n");
-		addr = osc_parse_string(s);
-		if (!addr)
-			return NULL;
-	}
-
 	if (addr->value[0] != '/') {
 		osc_format_print(&s->f, 0, "Message does not start with valid address!\n");
 		goto out;
