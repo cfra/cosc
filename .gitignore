@@ -2,6 +2,7 @@
 *.expand
 *.gcda
 *.gcno
+/tests/oscdispatcher
 /tests/oscparser
 /tests/oscparser_afl
 /tests/oscutils_addr_split
