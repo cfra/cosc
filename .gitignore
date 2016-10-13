@@ -11,3 +11,8 @@
 /tests/oscutils_pattern_match
 /tests/oscutils_pattern_match_afl
 coverage.info
+/Makefile
+/cmake_install.cmake
+/install_manifest.txt
+/CMakeFiles
+/CMakeCache.txt
