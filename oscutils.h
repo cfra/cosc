@@ -23,5 +23,6 @@
 #define OSCUTILS_H
 
 char **osc_addr_split(const char *address, size_t *count);
+bool osc_pattern_match(const char *pattern, const char *token);
 
 #endif

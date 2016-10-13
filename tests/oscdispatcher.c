@@ -84,6 +84,26 @@ int main(int argc, char **argv)
 	printf("Trying bundle w/o immediate delivery\n");
 	osc_dispatcher_process(d, (struct osc_element*)&b);
 
+	printf("Trying ? match\n");
+	addr.value = "/foo/ba?";
+	osc_dispatcher_process(d, (struct osc_element*)&m);
+
+	printf("Trying * match\n");
+	addr.value = "/foo*/bar";
+	osc_dispatcher_process(d, (struct osc_element*)&m);
+
+	printf("Trying [] matches\n");
+	addr.value = "/foo/ba[a-t]";
+	osc_dispatcher_process(d, (struct osc_element*)&m);
+
+	printf("Trying inverted [] matches\n");
+	addr.value = "/foo/ba[!a-t]";
+	osc_dispatcher_process(d, (struct osc_element*)&m);
+
+	printf("Trying {} matches\n");
+	addr.value = "/f{o,oo,oo2}/*r";
+	osc_dispatcher_process(d, (struct osc_element*)&m);
+
 	printf("Done.\n");
 
 	return 0;

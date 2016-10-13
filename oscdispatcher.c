@@ -146,42 +146,32 @@ out:
 	free(tokens);
 }
 
+static void _osc_dispatcher_process_message(struct osc_node *n, char **tokens, size_t token_count,
+                                            struct osc_message *msg)
+{
+	if (!token_count) {
+		if (n->type != OSC_METHOD)
+			return;
+		((struct osc_method *)n)->callback(msg->arguments);
+		return;
+	}
+
+	if (n->type != OSC_CONTAINER)
+		return;
+
+	for (struct osc_node *c = ((struct osc_container *)n)->children; c; c = c->next) {
+		if (osc_pattern_match(tokens[0], c->name))
+			_osc_dispatcher_process_message(c, tokens + 1, token_count - 1, msg);
+	}
+}
+
 static void osc_dispatcher_process_message(struct osc_dispatcher *d, struct osc_message *msg)
 {
 	size_t token_count;
 	char **tokens = osc_addr_split(msg->address->value, &token_count);
 
-	struct osc_container *c = d->root;
-	struct osc_method *m = NULL;
+	_osc_dispatcher_process_message((struct osc_node *)d->root, tokens, token_count, msg);
 
-	for (size_t i = 0; i < token_count; i++) {
-		char *token = tokens[i];
-		struct osc_node *n;
-
-		for (n = c->children; n; n = n->next) {
-			if (!strcmp(n->name, token))
-				break;
-		}
-
-		if (!n)
-			return;
-		if (i < token_count - 1) {
-			if (n->type != OSC_CONTAINER)
-				goto out;
-			c = (struct osc_container *)n;
-		} else {
-			if (n->type != OSC_METHOD)
-				goto out;
-			m = (struct osc_method *)n;
-		}
-	}
-
-	if (!m)
-		goto out;
-
-	m->callback(msg->arguments);
-
-out:
 	for (size_t i = 0; i < token_count; i++)
 		free(tokens[i]);
 	free(tokens);
