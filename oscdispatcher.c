@@ -49,6 +49,7 @@ struct osc_container {
 struct osc_method {
 	OSC_NODE_COMMON
 	osc_method callback;
+	void *arg;
 };
 
 
@@ -68,7 +69,7 @@ static struct osc_container *osc_container_new(const char *name)
 	return rv;
 };
 
-static struct osc_method *osc_method_new(const char *name, osc_method callback)
+static struct osc_method *osc_method_new(const char *name, osc_method callback, void *arg)
 {
 	struct osc_method *rv;
 
@@ -76,6 +77,7 @@ static struct osc_method *osc_method_new(const char *name, osc_method callback)
 	rv->type = OSC_METHOD;
 	rv->name = strdup(name);
 	rv->callback = callback;
+	rv->arg = arg;
 
 	return rv;
 }
@@ -91,7 +93,7 @@ struct osc_dispatcher *osc_dispatcher_new(void)
 }
 
 void osc_dispatcher_add_method(struct osc_dispatcher *d, const char *address,
-                               osc_method callback)
+                               osc_method callback, void *arg)
 {
 	size_t slashes = 0;
 
@@ -124,7 +126,7 @@ void osc_dispatcher_add_method(struct osc_dispatcher *d, const char *address,
 				/* it's not the last token, so create container */
 				n = (struct osc_node*)osc_container_new(token);
 			} else { /* it is the last token, so create method */
-				n = (struct osc_node*)osc_method_new(token, callback);
+				n = (struct osc_node*)osc_method_new(token, callback, arg);
 			}
 			/* Insert created node */
 			*c->endp = n;
@@ -152,7 +154,8 @@ static void _osc_dispatcher_process_message(struct osc_node *n, char **tokens, s
 	if (!token_count) {
 		if (n->type != OSC_METHOD)
 			return;
-		((struct osc_method *)n)->callback(msg->arguments);
+		struct osc_method *m = (struct osc_method *)n;
+		m->callback(m->arg, msg->arguments);
 		return;
 	}
 

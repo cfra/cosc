@@ -23,14 +23,14 @@
 #include "../oscdispatcher.h"
 #include "../oscparser.h"
 
-static void callback_foo_bar(struct osc_element *e) {
+static void callback_foo_bar(void *arg, struct osc_element *e) {
 	printf("foo_bar called.\n");
 }
 
-static void callback_foo_baz(struct osc_element *e) {
+static void callback_foo_baz(void *arg, struct osc_element *e) {
 	printf("foo_baz called.\n");
 }
-static void callback_foo2_bar(struct osc_element *e) {
+static void callback_foo2_bar(void *arg, struct osc_element *e) {
 	printf("foo2_bar called.\n");
 }
 
@@ -38,9 +38,9 @@ int main(int argc, char **argv)
 {
 	struct osc_dispatcher *d = osc_dispatcher_new();
 
-	osc_dispatcher_add_method(d, "/foo/bar", callback_foo_bar);
-	osc_dispatcher_add_method(d, "/foo/baz", callback_foo_baz);
-	osc_dispatcher_add_method(d, "/foo2/bar", callback_foo2_bar);
+	osc_dispatcher_add_method(d, "/foo/bar", callback_foo_bar, NULL);
+	osc_dispatcher_add_method(d, "/foo/baz", callback_foo_baz, NULL);
+	osc_dispatcher_add_method(d, "/foo2/bar", callback_foo2_bar, NULL);
 
 	struct osc_string addr = {
 		.type = OSC_STRING,

@@ -25,11 +25,11 @@
 struct osc_dispatcher;
 struct osc_element;
 
-typedef void (*osc_method)(struct osc_element *arguments);
+typedef void (*osc_method)(void *arg, struct osc_element *arguments);
 
 struct osc_dispatcher *osc_dispatcher_new(void);
 void osc_dispatcher_add_method(struct osc_dispatcher *d, const char *address,
-                               osc_method callback);
+                               osc_method callback, void *arg);
 void osc_dispatcher_process(struct osc_dispatcher *d, struct osc_element *e);
 
 #endif
