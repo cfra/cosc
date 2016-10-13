@@ -19,19 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#define _GNU_SOURCE 1
-#include <assert.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <inttypes.h>
-#include <netdb.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <sys/types.h>
+#ifndef OSCSERVER_H
+#define OSCSERVER_H
+
+#include "oscdispatcher.h"
+
+struct osc_server;
+
+struct osc_server *osc_server_new(const char *node, const char *service,
+                                  const struct addrinfo *hints);
+void osc_server_add_method(struct osc_server *server, const char *address,
+                           osc_method callback, void *arg);
+int osc_server_set_blocking(struct osc_server *server, bool blocking);
+int osc_server_run(struct osc_server *server);
+
+#endif

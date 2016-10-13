@@ -5,6 +5,7 @@
 /tests/oscdispatcher
 /tests/oscparser
 /tests/oscparser_afl
+/tests/oscserver
 /tests/oscutils_addr_split
 /tests/oscutils_addr_split_afl
 /tests/oscutils_pattern_match

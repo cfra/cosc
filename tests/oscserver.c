@@ -19,19 +19,32 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#define _GNU_SOURCE 1
-#include <assert.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <inttypes.h>
-#include <netdb.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <sys/types.h>
+#include "../cosc.h"
+#include "../oscserver.h"
+#include "../oscparser.h"
+
+void fader_callback(void *arg, struct osc_element *arguments)
+{
+	const char *name = arg;
+	if (!arguments || arguments->type != OSC_FLOAT32) {
+		printf("%s called with invalid argument:\n%s", name, osc_format(arguments));
+		return;
+	}
+
+	struct osc_float32 *f = (struct osc_float32*)arguments;
+
+	printf("%s set to %f\n", name, f->value);
+}
+
+int main(int argc, char **argv)
+{
+	struct osc_server *server = osc_server_new(NULL, "4223", NULL);
+	if (!server) {
+		fprintf(stderr, "Could not create server.\n");
+		return 1;
+	}
+
+	osc_server_add_method(server, "/Fader1/x", fader_callback, "Fader1");
+	osc_server_run(server);
+	return 1;
+}
