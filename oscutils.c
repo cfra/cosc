@@ -113,10 +113,6 @@ top:
 		if (!end)
 			return false; /* The pattern is flawed, return no-match */
 
-		char acceptable[512];
-		char *ap = acceptable;
-
-		*ap = '\0';
 		pattern++;
 
 		bool invert_match = false;
@@ -125,55 +121,21 @@ top:
 			pattern++;
 		}
 
-#define append_acceptable(c) \
-do { \
-	if ((size_t)(ap - acceptable) < sizeof(acceptable)) { \
-		*ap = c; \
-		ap++; \
-		*ap = '\0'; \
-	} else { \
-		/* If somebody screws with the pattern so badly that it exceeds 512 ascii chars, \
-		 * assume it's broken and return no-match */ \
-		return false; \
-	} \
-} while (0)
-
-		bool saw_minus = false;
+		bool match = false;
 		for (; *pattern != ']'; pattern++) {
-			if (*pattern == '-') {
-				saw_minus = true;
-				continue;
-			}
-			if (saw_minus) {
-				saw_minus = false;
-				if (ap != acceptable) {
-					/* If there was something before the '-' */
-					char start = *(ap-1) + 1;
-					if (start <= *pattern) {
-						for (char i = start; i <= *pattern; i++)
-							append_acceptable(i);
-					} else {
-						append_acceptable(*pattern);
-					}
-				} else {
-					/* Else, just treat it as '-' */
-					append_acceptable('-');
-				}
-				continue;
-			}
-			append_acceptable(*pattern);
+			char start = *pattern;
+			char end = start;
+
+			if (*(pattern+1) == '-' && *(pattern+2) != ']')
+				end = *pattern + 2;
+
+			if (*token >= start && *token <= end)
+				match = true;
 		}
-		if (saw_minus)
-			append_acceptable('-');
 
-#undef append_acceptable
-
-		if (strchr(acceptable, *token)) {
-			if (invert_match)
-				return false;
-		} else {
-			if (!invert_match)
-				return false;
+		if ((match && invert_match)
+		    || (!match && !invert_match)) {
+			return false;
 		}
 
 		pattern++;

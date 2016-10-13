@@ -201,14 +201,48 @@ static int run_all(void)
 	return failed;
 }
 
+static const char *hex(char *input, size_t len)
+{
+	static char *buf;
+	static size_t buf_size;
+
+	if (buf_size < len * 4 + 1) {
+		buf_size = 2 * len * 4 + 1;
+		buf = realloc(buf, buf_size);
+	}
+
+	buf[0] = '\0';
+	for (size_t i = 0; i < len; i++)
+		snprintf(buf + 4*i, 5, "\\x%02x", (unsigned char)input[i]);
+
+	return buf;
+}
+
+static void dump_testcase(struct testcase *t)
+{
+	printf("%s,", hex(t->input, t->input_len));
+	printf("%s,", hex(t->output, t->output_len));
+	printf("%d\n", t->ret);
+}
+
+static int dump_testcases(void)
+{
+	for (size_t i = 0; i < sizeof(testcases)/sizeof(testcases[0]); i++)
+		dump_testcase(&testcases[i]);
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	if (argc == 2 && !strcmp(argv[1], "-r"))
 		return test(stdin, stdout);
 
+	if (argc == 2 && !strcmp(argv[1], "-d"))
+		return dump_testcases();
+
 	if (argc == 2 && argv[1][0] != '-') {
 		int id = atoi(argv[1]);
-		if (id >= sizeof(testcases)/sizeof(testcases[0])) {
+		if ((size_t)id >= sizeof(testcases)/sizeof(testcases[0])) {
 			fprintf(stderr, "Test %d doesn't exist.\n", id);
 			return 1;
 		}
