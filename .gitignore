@@ -7,4 +7,6 @@
 /tests/oscparser_afl
 /tests/oscutils_addr_split
 /tests/oscutils_addr_split_afl
+/tests/oscutils_pattern_match
+/tests/oscutils_pattern_match_afl
 coverage.info
