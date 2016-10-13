@@ -32,5 +32,6 @@ void osc_server_add_method(struct osc_server *server, const char *address,
                            osc_method callback, void *arg);
 int osc_server_set_blocking(struct osc_server *server, bool blocking);
 int osc_server_run(struct osc_server *server);
+int osc_server_fd(struct osc_server *server);
 
 #endif

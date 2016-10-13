@@ -130,3 +130,8 @@ int osc_server_run(struct osc_server *server)
 		osc_free(e);
 	}
 }
+
+int osc_server_fd(struct osc_server *server)
+{
+	return server->fd;
+}
